@@ -2,14 +2,16 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-image = cv2.imread(
-    r"D:\KULIAH\Akademis\Sem 3\PCD\PCD\Citra\citra_rgb.png",
-    cv2.IMREAD_GRAYSCALE
-)
+image_path = r"D:\KULIAH\Akademis\Sem 3\PCD\PCD\Citra\citra_rgb.png"
 
+image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+image_original = cv2.imread(image_path, cv2.IMREAD_COLOR)
 if image is None:
     print("Gambar tidak ditemukan. Periksa kembali lokasi file.")
     raise SystemExit
+
+image_rgb = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
 
 tinggi, lebar = image.shape
 total_piksel = tinggi * lebar
@@ -132,63 +134,99 @@ print("Puncak pertama otomatis:", puncak1)
 print("Puncak kedua otomatis:", puncak2)
 print("Threshold Valley:", threshold_valley)
 
-# VISUALISASI
-fig = plt.figure("Histogram Analysis - CDF dan Valley Detection", figsize=(16, 9))
-gs = fig.add_gridspec(2, 4, height_ratios=[1, 1], hspace=0.38, wspace=0.32)
+# VISUALISASI DALAM SATU WINDOW
+# Citra asli ditampilkan satu kali di bagian atas-tengah,
+# sedangkan layout tiap metode dipertahankan seperti sebelumnya.
+fig = plt.figure(
+    "Histogram Analysis - CDF dan Valley Detection",
+    figsize=(18, 11),
+    dpi=100
+)
+gs = fig.add_gridspec(
+    3, 1,
+    # Bagian gambar asli dibuat lebih pendek agar dua baris analisis lebih luas
+    height_ratios=[0.35, 1.8, 1.8],
+    hspace=0.28
+)
 
-# METODE CDF
-ax1 = fig.add_subplot(gs[0, 0])
+# ==============================
+# BAGIAN ATAS-TENGAH: CITRA ASLI
+# ==============================
+original_gs = gs[0].subgridspec(1, 3, wspace=0)
+ax_original = fig.add_subplot(original_gs[0, 1])
+ax_original.imshow(image_rgb)
+ax_original.set_title("Citra Asli Berwarna", fontsize=10, pad=2)
+ax_original.axis("off")
+
+# ==============================
+# BARIS 1: METODE CDF
+# ==============================
+cdf_gs = gs[1].subgridspec(1, 4, wspace=0.32)
+
+ax1 = fig.add_subplot(cdf_gs[0, 0])
 ax1.imshow(image, cmap="gray", vmin=0, vmax=255)
-ax1.set_title("Input Grayscale - CDF")
+ax1.set_title("Citra Grayscale - CDF")
 ax1.axis("off")
 
-ax2 = fig.add_subplot(gs[0, 1])
+ax2 = fig.add_subplot(cdf_gs[0, 1])
 ax2.bar(range(256), histogram, width=1)
-ax2.axvline(threshold_cdf, linestyle="--",
-            label=f"Threshold = {threshold_cdf}")
+ax2.axvline(
+    threshold_cdf, linestyle="--",
+    label=f"Threshold = {threshold_cdf}"
+)
 ax2.set_title("Histogram Intensitas")
 ax2.set_xlabel("Intensitas Piksel")
 ax2.set_ylabel("Jumlah Piksel")
 ax2.legend(fontsize=8)
 
-ax3 = fig.add_subplot(gs[0, 2])
+ax3 = fig.add_subplot(cdf_gs[0, 2])
 ax3.plot(range(256), cdf, label="CDF")
 ax3.axhline(0.5, linestyle="--", label="CDF = 0.5")
-ax3.axvline(threshold_cdf, linestyle="--",
-            label=f"Threshold = {threshold_cdf}")
+ax3.axvline(
+    threshold_cdf, linestyle="--",
+    label=f"Threshold = {threshold_cdf}"
+)
 ax3.set_title("Cumulative Distribution Function")
 ax3.set_xlabel("Intensitas Piksel")
 ax3.set_ylabel("CDF")
 ax3.legend(fontsize=8)
 
-ax4 = fig.add_subplot(gs[0, 3])
+ax4 = fig.add_subplot(cdf_gs[0, 3])
 ax4.imshow(hasil_cdf, cmap="gray", vmin=0, vmax=255)
 ax4.set_title(f"Hasil Thresholding CDF (T = {threshold_cdf})")
 ax4.axis("off")
 
-# METODE VALLEY DETECTION
-ax5 = fig.add_subplot(gs[1, 0])
+# ==============================
+# BARIS 2: METODE VALLEY DETECTION
+# ==============================
+valley_gs = gs[2].subgridspec(1, 4, wspace=0.32)
+
+ax5 = fig.add_subplot(valley_gs[0, 0])
 ax5.imshow(image, cmap="gray", vmin=0, vmax=255)
-ax5.set_title("Input Grayscale - Valley")
+ax5.set_title("Citra Grayscale - Valley")
 ax5.axis("off")
 
-ax6 = fig.add_subplot(gs[1, 1:3])
-ax6.bar(range(256), histogram, width=1, alpha=0.4,
-        label="Histogram Asli")
+ax6 = fig.add_subplot(valley_gs[0, 1:3])
+ax6.bar(
+    range(256), histogram, width=1, alpha=0.4,
+    label="Histogram Asli"
+)
 ax6.plot(range(256), hist_halus, label="Histogram Halus")
 ax6.axvline(puncak1, linestyle=":", label=f"Puncak 1 = {puncak1}")
 ax6.axvline(puncak2, linestyle=":", label=f"Puncak 2 = {puncak2}")
-ax6.axvline(threshold_valley, linestyle="--",
-            label=f"Threshold Valley = {threshold_valley}")
+ax6.axvline(
+    threshold_valley, linestyle="--",
+    label=f"Threshold Valley = {threshold_valley}"
+)
 ax6.set_title("Histogram dan Valley Detection")
 ax6.set_xlabel("Intensitas Piksel")
 ax6.set_ylabel("Jumlah Piksel")
 ax6.legend(fontsize=8)
 
-ax7 = fig.add_subplot(gs[1, 3])
+ax7 = fig.add_subplot(valley_gs[0, 3])
 ax7.imshow(hasil_valley, cmap="gray", vmin=0, vmax=255)
 ax7.set_title(f"Hasil Thresholding Valley (T = {threshold_valley})")
 ax7.axis("off")
 
-fig.tight_layout(rect=[0, 0, 1, 0.96])
+fig.subplots_adjust(top=0.97, bottom=0.06, left=0.045, right=0.985)
 plt.show()
