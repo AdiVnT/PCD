@@ -134,9 +134,7 @@ print("Puncak pertama otomatis:", puncak1)
 print("Puncak kedua otomatis:", puncak2)
 print("Threshold Valley:", threshold_valley)
 
-# VISUALISASI DALAM SATU WINDOW
-# Citra asli ditampilkan satu kali di bagian atas-tengah,
-# sedangkan layout tiap metode dipertahankan seperti sebelumnya.
+# VISUALISASI
 fig = plt.figure(
     "Histogram Analysis - CDF dan Valley Detection",
     figsize=(18, 11),
@@ -144,23 +142,19 @@ fig = plt.figure(
 )
 gs = fig.add_gridspec(
     3, 1,
-    # Bagian gambar asli dibuat lebih pendek agar dua baris analisis lebih luas
     height_ratios=[0.35, 1.8, 1.8],
     hspace=0.28
 )
 
-# ==============================
-# BAGIAN ATAS-TENGAH: CITRA ASLI
-# ==============================
+# CITRA ASLI
 original_gs = gs[0].subgridspec(1, 3, wspace=0)
 ax_original = fig.add_subplot(original_gs[0, 1])
 ax_original.imshow(image_rgb)
 ax_original.set_title("Citra Asli Berwarna", fontsize=10, pad=2)
 ax_original.axis("off")
 
-# ==============================
-# BARIS 1: METODE CDF
-# ==============================
+
+# METODE CDF
 cdf_gs = gs[1].subgridspec(1, 4, wspace=0.32)
 
 ax1 = fig.add_subplot(cdf_gs[0, 0])
@@ -196,9 +190,7 @@ ax4.imshow(hasil_cdf, cmap="gray", vmin=0, vmax=255)
 ax4.set_title(f"Hasil Thresholding CDF (T = {threshold_cdf})")
 ax4.axis("off")
 
-# ==============================
-# BARIS 2: METODE VALLEY DETECTION
-# ==============================
+# METODE VALLEY DETECTION
 valley_gs = gs[2].subgridspec(1, 4, wspace=0.32)
 
 ax5 = fig.add_subplot(valley_gs[0, 0])
