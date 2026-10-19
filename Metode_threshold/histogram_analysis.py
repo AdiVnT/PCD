@@ -2,21 +2,19 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ==============================
-# 1. MEMBACA CITRA GRAYSCALE
-# ==============================
-image = cv2.imread(r"D:\KULIAH\Akademis\Sem 3\PCD\PCD\Citra\citra_rgb.png", cv2.IMREAD_GRAYSCALE)
+image = cv2.imread(
+    r"D:\KULIAH\Akademis\Sem 3\PCD\PCD\Citra\citra_rgb.png",
+    cv2.IMREAD_GRAYSCALE
+)
 
 if image is None:
-    print("Gambar tidak ditemukan.")
-    exit()
+    print("Gambar tidak ditemukan. Periksa kembali lokasi file.")
+    raise SystemExit
 
 tinggi, lebar = image.shape
 total_piksel = tinggi * lebar
 
-# ==============================
-# 2. MENGHITUNG HISTOGRAM MANUAL
-# ==============================
+# MENGHITUNG HISTOGRAM
 histogram = [0] * 256
 
 for y in range(tinggi):
@@ -24,9 +22,7 @@ for y in range(tinggi):
         intensitas = image[y, x]
         histogram[intensitas] += 1
 
-# ==============================
-# 3. MENGHITUNG CDF MANUAL
-# ==============================
+# MENGHITUNG CDF
 cdf = [0.0] * 256
 kumulatif = 0
 
@@ -34,9 +30,7 @@ for i in range(256):
     kumulatif += histogram[i]
     cdf[i] = kumulatif / total_piksel
 
-# ==============================
 # METODE 1: CDF > 0.5
-# ==============================
 threshold_cdf = 0
 
 for i in range(256):
@@ -44,11 +38,19 @@ for i in range(256):
         threshold_cdf = i
         break
 
-# ==============================
-# METODE 2: VALLEY DETECTION
-# ==============================
+# Terapkan thresholding CDF
+hasil_cdf = np.zeros_like(image)
 
-# A. Menghaluskan histogram dengan moving average
+for y in range(tinggi):
+    for x in range(lebar):
+        if image[y, x] > threshold_cdf:
+            hasil_cdf[y, x] = 255
+        else:
+            hasil_cdf[y, x] = 0
+
+# METODE 2: VALLEY DETECTION
+
+# Menghaluskan histogram dengan moving average
 hist_halus = [0.0] * 256
 ukuran_jendela = 11
 radius = ukuran_jendela // 2
@@ -66,141 +68,127 @@ for i in range(256):
 
     hist_halus[i] = jumlah / banyak
 
-# B. Mencari dua puncak histogram
-# Rentang dipilih berdasarkan histogram citra burungmu.
-# Puncak pertama: intensitas 80-129
-# Puncak kedua: intensitas 150-209
+# Mencari puncak
+kandidat_puncak = []
+radius_prominence = ukuran_jendela * 3
 
-puncak1 = 80
+for i in range(1, 255):
+    if hist_halus[i] >= hist_halus[i - 1] and hist_halus[i] > hist_halus[i + 1]:
+        awal_kiri = max(0, i - radius_prominence)
+        awal_kanan = min(255, i + radius_prominence)
 
-for i in range(81, 130):
-    if hist_halus[i] > hist_halus[puncak1]:
-        puncak1 = i
+        lembah_kiri = min(hist_halus[awal_kiri:i + 1])
+        lembah_kanan = min(hist_halus[i:awal_kanan + 1])
+        prominence = hist_halus[i] - max(lembah_kiri, lembah_kanan)
 
-puncak2 = 150
+        kandidat_puncak.append((i, prominence))
 
-for i in range(151, 210):
-    if hist_halus[i] > hist_halus[puncak2]:
-        puncak2 = i
+# Pilih dua puncak paling menonjol yang cukup berjauhan
+kandidat_puncak.sort(key=lambda item: item[1], reverse=True)
+jarak_minimum = ukuran_jendela * 3
+puncak_terpilih = []
 
-# C. Mencari lembah di antara kedua puncak
-kiri = min(puncak1, puncak2)
-kanan = max(puncak1, puncak2)
+for posisi, prominence in kandidat_puncak:
+    if all(abs(posisi - p) >= jarak_minimum for p in puncak_terpilih):
+        puncak_terpilih.append(posisi)
 
-threshold_valley = kiri
+    if len(puncak_terpilih) == 2:
+        break
 
-for i in range(kiri + 1, kanan + 1):
+if len(puncak_terpilih) < 2:
+    raise ValueError(
+        "Tidak ditemukan dua puncak histogram yang cukup terpisah. "
+        "Coba ubah ukuran_jendela atau periksa histogram citra."
+    )
+
+puncak1, puncak2 = sorted(puncak_terpilih)
+
+# Mencari lembah di antara kedua puncak
+threshold_valley = puncak1
+
+for i in range(puncak1 + 1, puncak2 + 1):
     if hist_halus[i] < hist_halus[threshold_valley]:
         threshold_valley = i
 
-# ==============================
-# 4. THRESHOLDING KEDUA METODE
-# ==============================
-hasil_cdf = np.zeros_like(image)
+# Terapkan thresholding Valley
 hasil_valley = np.zeros_like(image)
-perbedaan = np.zeros_like(image)
-
-jumlah_berbeda = 0
 
 for y in range(tinggi):
     for x in range(lebar):
-        piksel = image[y, x]
-
-        # Metode CDF
-        if piksel > threshold_cdf:
-            hasil_cdf[y, x] = 255
-        else:
-            hasil_cdf[y, x] = 0
-
-        # Metode Valley
-        if piksel > threshold_valley:
+        if image[y, x] > threshold_valley:
             hasil_valley[y, x] = 255
         else:
             hasil_valley[y, x] = 0
 
-        # Perbedaan hasil kedua metode
-        if hasil_cdf[y, x] != hasil_valley[y, x]:
-            perbedaan[y, x] = 255
-            jumlah_berbeda += 1
-
-# ==============================
-# 5. MENAMPILKAN NILAI
-# ==============================
+# MENAMPILKAN NILAI
 print("Total piksel:", total_piksel)
-print("Total histogram:", sum(histogram))
+print("Total piksel yang dihitung histogram:", sum(histogram))
 print()
 print("METODE 1 - CDF")
 print("Threshold CDF:", threshold_cdf)
 print()
 print("METODE 2 - VALLEY DETECTION")
-print("Puncak pertama:", puncak1)
-print("Puncak kedua:", puncak2)
+print("Puncak pertama otomatis:", puncak1)
+print("Puncak kedua otomatis:", puncak2)
 print("Threshold Valley:", threshold_valley)
-print()
-print("Jumlah piksel berbeda:", jumlah_berbeda)
-print("Persentase perbedaan:",
-      round(jumlah_berbeda / total_piksel * 100, 2), "%")
 
-# ==============================
-# 6. VISUALISASI PERBANDINGAN
-# ==============================
-plt.figure(figsize=(16, 9))
+# VISUALISASI
+fig = plt.figure("Histogram Analysis - CDF dan Valley Detection", figsize=(16, 9))
+gs = fig.add_gridspec(2, 4, height_ratios=[1, 1], hspace=0.38, wspace=0.32)
 
-# Citra grayscale
-plt.subplot(2, 3, 1)
-plt.imshow(image, cmap="gray", vmin=0, vmax=255)
-plt.title("Citra Grayscale")
-plt.axis("off")
+# METODE CDF
+ax1 = fig.add_subplot(gs[0, 0])
+ax1.imshow(image, cmap="gray", vmin=0, vmax=255)
+ax1.set_title("Input Grayscale - CDF")
+ax1.axis("off")
 
-# Histogram dan threshold
-plt.subplot(2, 3, 2)
-plt.bar(range(256), histogram, width=1, alpha=0.4,
-        label="Histogram")
-plt.plot(range(256), hist_halus, label="Histogram Halus")
+ax2 = fig.add_subplot(gs[0, 1])
+ax2.bar(range(256), histogram, width=1)
+ax2.axvline(threshold_cdf, linestyle="--",
+            label=f"Threshold = {threshold_cdf}")
+ax2.set_title("Histogram Intensitas")
+ax2.set_xlabel("Intensitas Piksel")
+ax2.set_ylabel("Jumlah Piksel")
+ax2.legend(fontsize=8)
 
-plt.axvline(puncak1, linestyle=":", label=f"Puncak 1 = {puncak1}")
-plt.axvline(puncak2, linestyle=":", label=f"Puncak 2 = {puncak2}")
-plt.axvline(threshold_cdf, linestyle="--",
-            label=f"CDF = {threshold_cdf}")
-plt.axvline(threshold_valley, linestyle="-.",
-            label=f"Valley = {threshold_valley}")
+ax3 = fig.add_subplot(gs[0, 2])
+ax3.plot(range(256), cdf, label="CDF")
+ax3.axhline(0.5, linestyle="--", label="CDF = 0.5")
+ax3.axvline(threshold_cdf, linestyle="--",
+            label=f"Threshold = {threshold_cdf}")
+ax3.set_title("Cumulative Distribution Function")
+ax3.set_xlabel("Intensitas Piksel")
+ax3.set_ylabel("CDF")
+ax3.legend(fontsize=8)
 
-plt.title("Perbandingan Histogram")
-plt.xlabel("Intensitas Piksel")
-plt.ylabel("Jumlah Piksel")
-plt.legend(fontsize=8)
+ax4 = fig.add_subplot(gs[0, 3])
+ax4.imshow(hasil_cdf, cmap="gray", vmin=0, vmax=255)
+ax4.set_title(f"Hasil Thresholding CDF (T = {threshold_cdf})")
+ax4.axis("off")
 
-# Grafik CDF
-plt.subplot(2, 3, 3)
-plt.plot(range(256), cdf, label="CDF")
-plt.axhline(0.5, linestyle="--", label="CDF = 0.5")
-plt.axvline(threshold_cdf, linestyle="--",
-            label=f"T CDF = {threshold_cdf}")
-plt.axvline(threshold_valley, linestyle="-.",
-            label=f"T Valley = {threshold_valley}")
+# METODE VALLEY DETECTION
+ax5 = fig.add_subplot(gs[1, 0])
+ax5.imshow(image, cmap="gray", vmin=0, vmax=255)
+ax5.set_title("Input Grayscale - Valley")
+ax5.axis("off")
 
-plt.title("Cumulative Distribution Function")
-plt.xlabel("Intensitas Piksel")
-plt.ylabel("CDF")
-plt.legend(fontsize=8)
+ax6 = fig.add_subplot(gs[1, 1:3])
+ax6.bar(range(256), histogram, width=1, alpha=0.4,
+        label="Histogram Asli")
+ax6.plot(range(256), hist_halus, label="Histogram Halus")
+ax6.axvline(puncak1, linestyle=":", label=f"Puncak 1 = {puncak1}")
+ax6.axvline(puncak2, linestyle=":", label=f"Puncak 2 = {puncak2}")
+ax6.axvline(threshold_valley, linestyle="--",
+            label=f"Threshold Valley = {threshold_valley}")
+ax6.set_title("Histogram dan Valley Detection")
+ax6.set_xlabel("Intensitas Piksel")
+ax6.set_ylabel("Jumlah Piksel")
+ax6.legend(fontsize=8)
 
-# Hasil metode CDF
-plt.subplot(2, 3, 4)
-plt.imshow(hasil_cdf, cmap="gray", vmin=0, vmax=255)
-plt.title(f"Hasil CDF (T = {threshold_cdf})")
-plt.axis("off")
+ax7 = fig.add_subplot(gs[1, 3])
+ax7.imshow(hasil_valley, cmap="gray", vmin=0, vmax=255)
+ax7.set_title(f"Hasil Thresholding Valley (T = {threshold_valley})")
+ax7.axis("off")
 
-# Hasil metode Valley
-plt.subplot(2, 3, 5)
-plt.imshow(hasil_valley, cmap="gray", vmin=0, vmax=255)
-plt.title(f"Hasil Valley (T = {threshold_valley})")
-plt.axis("off")
-
-# Piksel yang berbeda
-plt.subplot(2, 3, 6)
-plt.imshow(perbedaan, cmap="gray", vmin=0, vmax=255)
-plt.title("Perbedaan Kedua Hasil")
-plt.axis("off")
-
-plt.tight_layout()
+fig.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
