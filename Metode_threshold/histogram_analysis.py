@@ -134,6 +134,9 @@ print("Puncak pertama otomatis:", puncak1)
 print("Puncak kedua otomatis:", puncak2)
 print("Threshold Valley:", threshold_valley)
 
+cv2.imwrite("hasil_cdf.png", hasil_cdf)
+cv2.imwrite("hasil_valley.png", hasil_valley)
+
 # VISUALISASI
 fig = plt.figure(
     "Histogram Analysis - CDF dan Valley Detection",
@@ -221,4 +224,5 @@ ax7.set_title(f"Hasil Thresholding Valley (T = {threshold_valley})")
 ax7.axis("off")
 
 fig.subplots_adjust(top=0.97, bottom=0.06, left=0.045, right=0.985)
+plt.savefig("hasil_histogram_analysis.png", dpi=100)
 plt.show()
